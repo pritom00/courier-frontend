@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Brown & white palette */
+    --background: 30 40% 99%;
+    --foreground: 22 30% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 22 30% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 22 30% 14%;
+    --primary: 24 48% 29%;
+    --primary-foreground: 30 40% 98%;
+    --secondary: 30 35% 93%;
+    --secondary-foreground: 24 40% 22%;
+    --muted: 30 28% 95%;
+    --muted-foreground: 24 14% 38%;
+    --accent: 28 45% 89%;
+    --accent-foreground: 24 45% 22%;
+    --destructive: 0 68% 42%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 145 55% 28%;
+    --success-foreground: 0 0% 100%;
+    --warning: 32 90% 34%;
+    --warning-foreground: 0 0% 100%;
+    --border: 28 22% 86%;
+    --input: 28 22% 80%;
+    --ring: 24 48% 29%;
+    --radius: 0.75rem;
+    --chart-1: 24 48% 29%;
+    --chart-2: 30 55% 45%;
+    --chart-3: 35 60% 60%;
+    --chart-4: 20 35% 50%;
+    --chart-5: 40 45% 78%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
