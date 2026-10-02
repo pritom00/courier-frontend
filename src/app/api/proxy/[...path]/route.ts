@@ -11,11 +11,23 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path: string[]
     return NextResponse.json({ success: false, message: "Route not allowed", errors: [] }, { status: 403 });
   }
 
-  // CSRF defence in depth (cookies are SameSite=Lax): state-changing calls must be same-origin.
+   // CSRF defence in depth (cookies are SameSite=Lax): state-changing calls must be same-site.
+  // Compared by hostname only (not full origin) because Render terminates TLS at its edge and
+  // forwards internally over plain HTTP, so req.nextUrl's computed protocol can be "http" even
+  // though the browser's real, correct Origin header says "https" - comparing full origins would
+  // incorrectly block legitimate same-site requests in that setup.
   if (req.method !== "GET") {
     const origin = req.headers.get("origin");
-    if (origin && origin !== req.nextUrl.origin) {
-      return NextResponse.json({ success: false, message: "Cross-origin request blocked", errors: [] }, { status: 403 });
+    if (origin) {
+      let originHost = "";
+      try {
+        originHost = new URL(origin).host;
+      } catch {
+        originHost = "";
+      }
+      if (originHost !== req.nextUrl.host) {
+        return NextResponse.json({ success: false, message: "Cross-origin request blocked", errors: [] }, { status: 403 });
+      }
     }
   }
 
