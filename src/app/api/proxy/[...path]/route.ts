@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { API_URL, COOKIES } from "@/lib/config";
 
-// Only these backend areas are reachable through the proxy (auth is handled by /api/auth/*).
 const ALLOWED = new Set(["users", "hubs", "shipments", "payments", "admin"]);
 
 async function handler(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
@@ -11,11 +10,7 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path: string[]
     return NextResponse.json({ success: false, message: "Route not allowed", errors: [] }, { status: 403 });
   }
 
-   // CSRF defence in depth (cookies are SameSite=Lax): state-changing calls must be same-site.
-  // Compared by hostname only (not full origin) because Render terminates TLS at its edge and
-  // forwards internally over plain HTTP, so req.nextUrl's computed protocol can be "http" even
-  // though the browser's real, correct Origin header says "https" - comparing full origins would
-  // incorrectly block legitimate same-site requests in that setup.
+  // CSRF: same public host only (Render-safe via x-forwarded-host)
   if (req.method !== "GET") {
     const origin = req.headers.get("origin");
     if (origin) {
@@ -25,8 +20,15 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path: string[]
       } catch {
         originHost = "";
       }
-      if (originHost !== req.nextUrl.host) {
-        return NextResponse.json({ success: false, message: "Cross-origin request blocked", errors: [] }, { status: 403 });
+
+      const forwardedHost = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+      const requestHost = forwardedHost || req.headers.get("host") || req.nextUrl.host;
+
+      if (originHost && originHost !== requestHost) {
+        return NextResponse.json(
+          { success: false, message: "Cross-origin request blocked", errors: [] },
+          { status: 403 }
+        );
       }
     }
   }
@@ -47,9 +49,15 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path: string[]
       signal: AbortSignal.timeout(55_000),
     });
     const text = await upstream.text();
-    return new NextResponse(text, { status: upstream.status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+    return new NextResponse(text, {
+      status: upstream.status,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    });
   } catch {
-    return NextResponse.json({ success: false, message: "The API is unreachable. Please retry.", errors: [] }, { status: 503 });
+    return NextResponse.json(
+      { success: false, message: "The API is unreachable. Please retry.", errors: [] },
+      { status: 503 }
+    );
   }
 }
 
