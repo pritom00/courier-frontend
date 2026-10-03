@@ -1,73 +1,231 @@
 # CourierHub — Frontend
 
-Next.js (App Router) frontend for the Courier & Logistics Management Platform. Connects to the deployed backend API and implements distinct workflows for three roles: **Customer**, **Courier ("Provider")**, and **Admin**.
+Next.js (App Router) frontend for the **Courier & Logistics Management Platform**.
 
-Theme: brown & white, defined as HSL design tokens in `src/app/globals.css` and consumed throughout via Tailwind.
+Customers book and pay for shipments, couriers update delivery status, and admins manage hubs, assignments, users, and reports. The UI provides **three distinct role-based workflows** with protected routes, real API data, and Stripe test-mode payments.
+
+---
+
+## Live links
+
+| Item | URL |
+|------|-----|
+| **Live Frontend** | https://courier-frontend-hi8r.onrender.com |
+| **Backend API** | https://courier-logistics-platform.onrender.com |
+| **API Docs (Swagger)** | https://courier-logistics-platform.onrender.com/api-docs |
+| **Backend Health** | https://courier-logistics-platform.onrender.com/health |
+| **Frontend Repository** | https://github.com/pritom00/courier-frontend |
+| **Backend Repository** | https://github.com/pritom00/courier-logistics-platform |
+
+> **Render free tier note:** The backend may sleep after inactivity. If demo login fails at first, open the [health endpoint](https://courier-logistics-platform.onrender.com/health), wait for a JSON response (about 20–40 seconds), then try login again on the frontend.
+
+---
+
+## Demo accounts
+
+One-click **Demo Login** buttons are available on the login page for all three roles.
+
+| Role | Email | Password |
+|------|-------|----------|
+| **Admin** | `admin@courierhub.com` | `Admin@12345` |
+| **Customer** | `customer@courierhub.com` | `Customer@123` |
+| **Courier** | `courier@courierhub.com` | `Courier@123` |
+
+---
+
+## Features
+
+- Distinct dashboards for **Customer**, **Courier (Provider)**, and **Admin**
+- Secure auth via **httpOnly cookies** (BFF pattern — JWT never stored in localStorage)
+- Middleware route protection and role-based redirects
+- One-click demo login for evaluators
+- Real backend API integration (no mock core data)
+- URL-synced search, filters, sort, and pagination
+- Multi-step **Create Shipment** wizard
+- **Stripe** test-mode checkout (success / cancel handling)
+- Admin analytics charts (Recharts)
+- Loading skeletons, empty states, error boundaries, and toast notifications
+- Mobile-first responsive layout
+
+---
 
 ## Tech stack
 
-- **Next.js 15** (App Router), **React 19**, **TypeScript** (strict, no `any`)
-- **Tailwind CSS** + custom shadcn/ui-style components on **Radix UI** primitives
-- **TanStack Query** (client-side data fetching/caching) + Next.js server-side data fetching for initial page loads
-- **Zustand** (global client state: session identity, mobile nav)
-- **React Hook Form + Zod** (all forms; validation rules mirror the backend's Zod schemas)
-- **Stripe** (`@stripe/react-stripe-js`) — real test-mode checkout, not simulated
-- **Recharts** — admin analytics (loaded client-only via `next/dynamic`, see note below)
-- **jose** — JWT decoding/verification in middleware (Edge-safe)
-- **Sonner** — toast notifications
-- **Geist** — font
+| Category | Technology |
+|----------|------------|
+| Framework | Next.js 15 (App Router), React 19, TypeScript |
+| Styling | Tailwind CSS, Radix UI / shadcn-style components |
+| Server state | TanStack Query + Next.js server-side fetching |
+| Client state | Zustand |
+| Forms | React Hook Form + Zod |
+| Auth | Custom JWT via httpOnly cookies + middleware |
+| Payments | Stripe (`@stripe/react-stripe-js`) — test mode |
+| Charts | Recharts (client-only) |
+| Toasts | Sonner |
+| Icons / font | Lucide React, Geist |
+
+---
 
 ## Architecture
 
-- **Middleware (`src/middleware.ts`)** guards `/admin`, `/dashboard`, `/provider`, `/payment` by role, silently refreshes an expiring access token using the refresh token, and protects `/api/proxy/*`.
-- **BFF pattern**: the browser never holds the JWT. `src/app/api/auth/*` and `src/app/api/proxy/[...path]` run server-side, storing tokens in httpOnly cookies and forwarding `Authorization: Bearer` to the real API.
-- **Server Components by default.** Every list/detail page fetches its own data server-side (`src/lib/api/server.ts`, `src/lib/api/queries.ts`) using `cookies()` for the token. `"use client"` is added only where interactivity is required (forms, dropdowns, charts, checkout).
-- **URL is the source of truth for list state** — pagination, filters, search, and sort all live in `useSearchParams` via `src/hooks/use-url-state.ts`, so any view is bookmarkable/shareable.
-- Every route segment that fetches data has a `loading.tsx` (skeleton) and every layout tier has an `error.tsx` boundary; a global `not-found.tsx` and root `error.tsx` cover the rest.
+- **Middleware (`src/middleware.ts`)** — Guards `/admin`, `/dashboard`, `/provider`, and `/payment` by role. Supports silent token refresh.
+- **BFF pattern** — `src/app/api/auth/*` and `src/app/api/proxy/[...path]` run on the server, attach tokens from httpOnly cookies, and forward requests to the backend.
+- **Server Components by default** — List and detail pages fetch data on the server. `"use client"` is used only for interactive UI (forms, filters, checkout, charts).
+- **URL as source of truth** — Search, status filters, sort, and pagination live in the query string via `useSearchParams` / `useUrlState`.
+- **Resilience** — `loading.tsx` skeletons, `error.tsx` boundaries, custom `not-found`, and Sonner toasts for API errors.
 
-## Getting started
+---
 
-```bash
+## Project structure
+
+```text
+src/
+  app/
+    (marketing)/     # Public pages: home, about, services, pricing, contact
+    (auth)/          # Login, register
+    admin/           # Admin dashboard, manage, reports, hubs, profile
+    dashboard/       # Customer shipments, payments, profile
+    provider/        # Courier deliveries, earnings, profile
+    payment/         # success / cancel
+    api/             # BFF: auth + proxy
+  components/        # UI + feature components
+  hooks/             # useUrlState and shared hooks
+  lib/               # api client, auth, validators, types, config
+middleware.ts        # Role-based route protection
+
+Main routesArea
+Path
+Access
+Home
+/
+Public
+About
+/about
+Public
+Services
+/services
+Public
+Pricing
+/pricing
+Public
+Contact
+/contact
+Public
+Login
+/login
+Public (demo buttons)
+Register
+/register
+Public
+Customer dashboard
+/dashboard
+Customer
+Customer payments
+/dashboard/payments
+Customer
+Customer profile
+/dashboard/profile
+Customer
+Courier deliveries
+/provider
+Courier
+Courier earnings
+/provider/earnings
+Courier
+Courier profile
+/provider/profile
+Courier
+Admin overview
+/admin
+Admin
+Admin manage
+/admin/manage
+Admin
+Admin reports
+/admin/reports
+Admin
+Payment success
+/payment/success
+Customer
+Payment cancel
+/payment/cancel
+Customer
+
+Getting started (local)bash
+
 npm install
-cp .env.example .env.local   # fill in API_URL and NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-npm run dev                  # http://localhost:3000
-```
+cp .env.example .env.local
 
-Production build: `npm run build && npm start`
+Fill in environment variables (see below), then:bash
 
-### Required environment variables
+npm run dev
 
-| Variable | Where used | Notes |
-|---|---|---|
-| `API_URL` | Server-side only | The deployed backend, including `/api/v1` |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Browser | Must be from the **same** Stripe account/sandbox as the backend's secret key |
-| `JWT_ACCESS_SECRET` | Middleware (optional) | If set to the backend's secret, middleware verifies token signatures instead of just decoding |
-| `NEXT_PUBLIC_SITE_URL` | Metadata/sitemap | Your deployed URL |
+App runs at http://localhost:3000.Production build:bash
 
-### Demo accounts (one-click login on `/login`)
+npm run build && npm start
 
-| Role | Email | Password |
-|---|---|---|
-| Admin | `admin@courierhub.com` | `Admin@12345` |
-| Customer | `customer@courierhub.com` | `Customer@123` |
-| Courier | `courier@courierhub.com` | `Courier@123` |
+Environment variablesVariable
+Required
+Description
+API_URL
+Yes
+Backend API base URL including /api/v1
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+Yes
+Stripe publishable key (same account as backend secret)
+NEXT_PUBLIC_SITE_URL
+Recommended
+Public site URL (metadata, sitemap)
+NEXT_PUBLIC_CONTACT_EMAIL
+Optional
+Contact page email
+JWT_ACCESS_SECRET
+Optional
+If set, middleware verifies JWT signatures
 
-## One-command verification
+Example:env
 
-```bash
-node scripts/verify-frontend.mjs                          # tests localhost:3000
-node scripts/verify-frontend.mjs --url=https://your-app.vercel.app
-```
+API_URL=https://courier-logistics-platform.onrender.com/api/v1
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxx
+NEXT_PUBLIC_SITE_URL=https://courier-frontend-hi8r.onrender.com
 
-Checks: every public page loads, `sitemap.xml`/`robots.txt` are correct, all three protected areas redirect unauthenticated visitors to `/login?next=...`, the API proxy returns a structured 401 with no session, unknown routes 404, all three demo accounts can log in, and each role is redirected away from the other roles' areas while reaching its own.
+Payment flowCustomer creates a shipment (multi-step wizard).
+On the shipment detail page, click Pay now.
+Frontend calls POST /payments/initiate and renders Stripe Payment Element.
+Pay with test card: 4242 4242 4242 4242 (any future expiry, any CVC).
+Browser redirects to /payment/success (or cancel route if abandoned).
+Stripe webhook on the backend marks the payment as PAID (source of truth).
 
-> This script must be run somewhere with real network access to your backend. See `DEVELOPMENT.md` for why.
+Verification scriptbash
 
-## Payment flow
+# Local
+node scripts/verify-frontend.mjs
 
-`Checkout` (`src/components/features/payments/checkout.tsx`) calls the backend's `/payments/initiate` to create a real Stripe PaymentIntent, then renders Stripe's `PaymentElement`. On submit, `stripe.confirmPayment()` redirects the browser to `/payment/success` (or Stripe redirects to `/payment/cancel` logic is handled by the user backing out). The backend's webhook — not this frontend — is the source of truth for the payment actually being marked `PAID`; the success page is a UI confirmation, not the source of truth.
+# Live
+node scripts/verify-frontend.mjs --url=https://courier-frontend-hi8r.onrender.com
 
-## Known environment-specific notes
+Checks public pages, SEO files, unauthenticated redirects, proxy 401 behavior, and demo logins (backend must be awake).Roles at a glanceRole
+Can do
+Customer
+Create/edit shipments, pay, view payments, update profile
+Courier
+View assigned deliveries, update delivery status, profile
+Admin
+Dashboard stats, manage resources, assign couriers, hubs, users, audit logs
 
-- `recharts` bundles its own `react-is@18.x`, which breaks Next 15 + React 19's server-side page-data collection during `next build`. Fixed by loading the two chart components exclusively through `next/dynamic` with `ssr: false` (`src/app/admin/charts-client.tsx`) so they only ever execute in the browser.
-- This project's build was verified in a sandboxed environment whose network allowlist blocks `*.onrender.com`. All build-time checks (TypeScript, ESLint, `next build`, middleware/route-protection behavior) were verified there against a real running server; anything requiring an actual round-trip to the live backend (login, dashboard data, checkout) could not be exercised in that sandbox and should be verified with `scripts/verify-frontend.mjs` from a machine with normal network access. See `DEVELOPMENT.md`.
+Role access is enforced in middleware and reflected in sidebar / navigation UI.DesignTheme: brown & white (HSL design tokens in src/app/globals.css)
+Utility-first styling with Tailwind CSS
+Shared components: tables, filters, status badges, skeletons, page headers
+Responsive: mobile-first layouts for all major dashboards
+
+Related backendItem
+URL
+Repo
+https://github.com/pritom00/courier-logistics-platform
+Live API
+https://courier-logistics-platform.onrender.com
+Swagger
+https://courier-logistics-platform.onrender.com/api-docs
+
+Backend stack: Node.js, Express, TypeScript, PostgreSQL, Prisma, Zod, JWT, Stripe, Redis.LicenseMIT
+
