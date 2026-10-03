@@ -10,17 +10,75 @@ import type { Paginated, ShipmentListItem } from "@/lib/types";
 
 export const metadata: Metadata = { title: "My deliveries" };
 
-async function DeliveriesList({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+async function DeliveriesList({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const sp = await searchParams;
   const { page, limit } = parsePage(sp);
-  const data = await serverFetch<Paginated<ShipmentListItem>>("/shipments/my-assigned", { query: { page, limit } });
-  return <ShipmentTable items={data.items} meta={data.meta} baseHref="/provider/shipments" showParty="customer" emptyTitle="No deliveries assigned" emptyDescription="New delivery jobs assigned to you will show up here." />;
+
+  const q = (Array.isArray(sp.q) ? sp.q[0] : sp.q)?.trim().toLowerCase() || "";
+  const status = (Array.isArray(sp.status) ? sp.status[0] : sp.status) || "";
+
+  // Fetch a larger page so client-side filter still has data to work with
+  const data = await serverFetch<Paginated<ShipmentListItem>>("/shipments/my-assigned", {
+    query: { page: 1, limit: 100 },
+  });
+
+  let items = data.items;
+
+  if (status && status !== "all") {
+    items = items.filter((s) => s.status === status);
+  }
+
+  if (q) {
+    items = items.filter((s) => {
+      const haystack = [
+        s.trackingCode,
+        s.deliveryAddress,
+        s.pickupAddress,
+        s.receiverName,
+        // customer name if present on list item
+        (s as { customer?: { name?: string } }).customer?.name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }
+
+  // Simple client pagination after filter
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const safePage = Math.min(page, totalPages);
+  const start = (safePage - 1) * limit;
+  const pageItems = items.slice(start, start + limit);
+
+  return (
+    <ShipmentTable
+      items={pageItems}
+      meta={{ total, page: safePage, limit, totalPages }}
+      baseHref="/provider/shipments"
+      showParty="customer"
+      emptyTitle="No deliveries found"
+      emptyDescription="Try a different search or status filter."
+    />
+  );
 }
 
-export default function ProviderDeliveriesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+export default function ProviderDeliveriesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   return (
     <div>
-      <PageHeader title="My deliveries" description="Shipments currently assigned to you." />
+      <PageHeader
+        title="My deliveries"
+        description="Shipments currently assigned to you."
+      />
       <div className="mb-4">
         <ShipmentFilters showSort={false} />
       </div>
